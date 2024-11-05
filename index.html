@@ -1,1 +1,264 @@
-"Hello World" 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CmdCore online</title>
+    <link rel="icon" type="image/png" href="assets/fav.png">
+    <style>
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            background-color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        #widget {
+            width: 400px;
+            background-color: #222;
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+            color: #fff;
+            display: none;
+        }
+        #console {
+            height: 300px;
+            overflow-y: auto;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            padding: 5px;
+            background-color: #111;
+        }
+        #input-container {
+            display: flex;
+            padding: 5px;
+            background-color: #444;
+            border-top: 1px solid #555;
+            border-radius: 0 0 8px 8px;
+        }
+        #input {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 4px;
+            background-color: #555;
+            color: #fff;
+        }
+        #input:focus {
+            outline: none;
+        }
+        #clear-console, #send-command {
+            margin-left: 10px;
+            background-color: #f44336;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            padding: 10px;
+            cursor: pointer;
+        }
+        #file-input {
+            margin-top: 10px;
+            background-color: #555;
+            border: none;
+            border-radius: 4px;
+            color: #fff;
+            padding: 5px;
+        }
+        #captcha-container {
+            text-align: center;
+            margin-bottom: 10px;
+        }
+    </style>
+    <script src="https://js.hcaptcha.com/1/api.js" async defer></script>
+</head>
+<body>
+    <div id="captcha-container">
+        <div class="h-captcha" data-sitekey="7632ab80-e8fa-4068-b10e-65ca5d787c16" data-callback="onCaptchaSuccess"></div>
+    </div>
+    <div id="widget">
+        <div id="console"></div>
+        <div id="input-container">
+            <input type="text" id="input" placeholder="Command" />
+            <button id="send-command">Execute</button>
+            <button id="clear-console">Clear</button>
+        </div>
+        <input type="file" id="file-input" accept=".cmdjs" />
+    </div>
+    <script>
+        function onCaptchaSuccess() {
+            document.getElementById('captcha-container').style.display = 'none';
+            document.getElementById('widget').style.display = 'block';
+        }
+
+        class Cmd {
+            constructor(kwrd, func, sep) {
+                this.kwrd = kwrd;
+                this.func = func;
+                this.sep = sep;
+            }
+            exec(param) {
+                let ps = this.sep ? param.split(" ") : [param];
+                this.func(ps);
+            }
+        }
+
+        class Env {
+            constructor(name, consoleElement) {
+                this.name = name;
+                this.consoleElement = consoleElement;
+                this.cmds = [];
+            }
+
+            addCmd(cmd) {
+                this.cmds.push(cmd);
+            }
+
+            execute(text) {
+                const [kwrd, param] = text.split(':');
+                const cmd = this.cmds.find(cmd => cmd.kwrd === kwrd);
+                if (cmd) {
+                    cmd.exec(param);
+                } else {
+                    this.writeToConsole(`Command not found: ${kwrd}`);
+                }
+            }
+
+            writeToConsole(text) {
+                const pre = document.createElement('pre');
+                pre.style.color = col;
+                let processedText = text; 
+                pre.innerHTML = processedText;
+                this.consoleElement.appendChild(pre);
+            }
+        }
+
+        const consoleElement = document.getElementById('console');
+        const inputElement = document.getElementById('input');
+        const clearButton = document.getElementById('clear-console');
+        const sendButton = document.getElementById('send-command');
+        const fileInput = document.getElementById('file-input');
+        const widget = document.getElementById('widget');
+
+        let col = "#fff";
+        const e = new Env("console", consoleElement);
+
+        e.addCmd(new Cmd("setcol", (color) => {
+            col = color;
+        }, false));
+
+        e.addCmd(new Cmd("write", (text) => {
+            e.writeToConsole(text.join(' '));
+        }, false));
+
+        e.addCmd(new Cmd("add", (args) => {
+            const result = args.reduce((a, b) => parseFloat(a) + parseFloat(b));
+            e.writeToConsole(result);
+        }, true));
+
+        e.addCmd(new Cmd("sub", (args) => {
+            const result = args.reduce((a, b) => parseFloat(a) - parseFloat(b));
+            e.writeToConsole(result);
+        }, true));
+
+        e.addCmd(new Cmd("mult", (args) => {
+            const result = args.reduce((a, b) => parseFloat(a) * parseFloat(b));
+            e.writeToConsole(result);
+        }, true));
+
+        e.addCmd(new Cmd("div", (args) => {
+            const result = args.reduce((a, b) => parseFloat(a) / parseFloat(b));
+            e.writeToConsole(result);
+        }, true));
+
+        e.addCmd(new Cmd("pow", (args) => {
+            const result = Math.pow(parseFloat(args[0]), parseFloat(args[1]));
+            e.writeToConsole(result);
+        }, true));
+
+        e.addCmd(new Cmd("sqrt", (args) => {
+            const result = Math.sqrt(parseFloat(args[0]));
+            e.writeToConsole(result);
+        }, true));
+
+        e.addCmd(new Cmd("mean", (args) => {
+            const result = args.reduce((a, b) => parseFloat(a) + parseFloat(b)) / args.length;
+            e.writeToConsole(result);
+        }, true));
+
+        e.addCmd(new Cmd("median", (args) => {
+            const sorted = args.map(parseFloat).sort((a, b) => a - b);
+            const mid = Math.floor(sorted.length / 2);
+            const result = sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+            e.writeToConsole(result);
+        }, true));
+
+        e.addCmd(new Cmd("lin_solve", (args) => {
+            const [a, b] = args.map(parseFloat);
+            if (a === 0) {
+                e.writeToConsole("No solution");
+            } else {
+                e.writeToConsole(-b / a);
+            }
+        }, true));
+
+        e.addCmd(new Cmd("quad_solve", (args) => {
+            const [a, b, c] = args.map(parseFloat);
+            const d = b * b - 4 * a * c;
+            if (d < 0) {
+                e.writeToConsole("No real roots");
+            } else {
+                const sqrtD = Math.sqrt(d);
+                const root1 = (-b + sqrtD) / (2 * a);
+                const root2 = (-b - sqrtD) / (2 * a);
+                e.writeToConsole(`Roots: ${root1}, ${root2}`);
+            }
+        }, true));
+
+        e.addCmd(new Cmd("exec_javascript", (args) => {
+            eval(args[0])
+        }, false));
+
+        e.addCmd(new Cmd("loop", (args) => {
+            const [iterations, ...command] = args;
+            for (let i = 0; i < parseInt(iterations); i++) {
+                e.execute(command.join(':'));
+            }
+        }, true));
+
+        sendButton.addEventListener('click', () => {
+            const command = inputElement.value;
+            e.execute(command);
+            inputElement.value = '';
+        });
+
+        inputElement.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+                sendButton.click();
+            }
+        });
+
+        clearButton.addEventListener('click', () => {
+            consoleElement.innerHTML = '';
+        });
+
+        fileInput.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (k) => {
+                    const commands = k.target.result.split('\n');
+                    commands.forEach(command => {
+                        if (command.trim()) {
+                            e.execute(command.trim());
+                        }
+                    });
+                };
+                reader.readAsText(file);
+            }
+        });
+    </script>
+</body>
+</html>
